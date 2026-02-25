@@ -2,10 +2,11 @@
 <html>
 <head>
 <meta charset="UTF-8">
-
 <title>Wedding Photo Upload</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Young+Serif&display=swap" rel="stylesheet">
+
+<script src="https://accounts.google.com/gsi/client"></script>
 
 <style>
 
@@ -13,32 +14,70 @@ body{
   background:#faefd1;
   font-family:'Young Serif', serif;
   color:#53683b;
+  margin:0;
+}
+
+.container{
+  max-width:700px;
+  margin:auto;
+  padding:40px 20px;
   text-align:center;
-  padding:40px;
 }
 
 .card{
-  max-width:600px;
-  margin:auto;
   background:white;
-  padding:40px;
-  border-radius:18px;
-  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  padding:50px 30px;
+  border-radius:24px;
+  box-shadow:0 12px 40px rgba(0,0,0,.08);
 }
 
 h1{
   font-family:'Cinzel Decorative', serif;
-  font-size:40px;
+  font-size:42px;
+  margin-bottom:10px;
+  letter-spacing:2px;
+}
+
+.subtitle{
+  font-size:18px;
+  opacity:.9;
+  margin-bottom:30px;
+}
+
+input[type="text"]{
+  width:100%;
+  padding:14px;
+  border-radius:12px;
+  border:1px solid #ddd;
+  margin-bottom:20px;
+  font-family:'Young Serif', serif;
+}
+
+.drop-area{
+  border:2px dashed #53683b;
+  padding:40px;
+  border-radius:18px;
+  cursor:pointer;
+  transition:.3s;
+}
+
+.drop-area:hover{
+  background:#faf7ea;
 }
 
 button{
   background:#53683b;
   color:white;
   border:none;
-  padding:14px 26px;
-  border-radius:10px;
+  padding:14px 28px;
+  border-radius:12px;
   margin-top:20px;
+  font-size:16px;
   cursor:pointer;
+}
+
+button:hover{
+  opacity:.9;
 }
 
 #status{
@@ -46,91 +85,154 @@ button{
   font-weight:bold;
 }
 
+.footer{
+  margin-top:30px;
+  font-size:14px;
+  opacity:.7;
+}
+
 </style>
-
-<script src="https://apis.google.com/js/api.js"></script>
-<script src="https://accounts.google.com/gsi/client"></script>
-
 </head>
 
 <body>
+
+<div class="container">
 
 <div class="card">
 
 <h1>Share Your Photos</h1>
 
-<p>Upload the pictures you took at our wedding.</p>
+<div class="subtitle">
+Help us capture every beautiful moment of our wedding day
+</div>
 
-<input type="file" id="fileInput" accept="image/*"><br>
+<input type="text" id="guestName" placeholder="Your Name (optional)">
 
-<button onclick="handleUpload()">Upload Photo</button>
+<div class="drop-area" id="dropArea">
+Tap or Drag Photos Here
+<br><br>
+<input type="file" id="fileInput" multiple accept="image/*" hidden>
+</div>
+
+<button onclick="startUpload()">Upload Photos</button>
 
 <div id="status"></div>
 
+<div class="footer">
+Thank you for celebrating with us ♡
+</div>
+
+</div>
 </div>
 
 <script>
 
-const CLIENT_ID = "PASTE_CLIENT_ID_HERE";
-const API_KEY = "";
-const FOLDER_ID = "PASTE_FOLDER_ID_HERE";
-
+const CLIENT_ID = "832309700489-44kias96pma4nsog4fos2djfqbtn1k98.apps.googleusercontent.com";
+const FOLDER_ID = "1ru23Oel9ww2jLg8Vj-MFTifdifIYnTe4?fbclid=IwY2xjawPVe9dleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeJmzEN7-mZZx4008a1IQIWTKCeKngW9QXKoJivmsseMP7Lhkq1inEcPh8Be0_aem_ZhEiQBVH4A4Yq6GmzrVmDA";
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 let tokenClient;
 let accessToken = null;
+let filesToUpload = [];
 
-function initClient() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (tokenResponse) => {
-      accessToken = tokenResponse.access_token;
-      uploadFile();
-    },
-  });
-}
+const dropArea = document.getElementById("dropArea");
+const fileInput = document.getElementById("fileInput");
 
-function handleUpload(){
-  if(!tokenClient){
-    initClient();
-  }
-  tokenClient.requestAccessToken();
-}
+dropArea.onclick = () => fileInput.click();
 
-function uploadFile(){
+fileInput.onchange = (e)=>{
+  filesToUpload = e.target.files;
+  dropArea.innerHTML = filesToUpload.length + " photo(s) selected";
+};
 
-  const file = document.getElementById('fileInput').files[0];
+dropArea.addEventListener("dragover", e=>{
+  e.preventDefault();
+  dropArea.style.background="#faf7ea";
+});
 
-  if(!file){
-    alert("Select a photo first");
+dropArea.addEventListener("dragleave", ()=>{
+  dropArea.style.background="white";
+});
+
+dropArea.addEventListener("drop", e=>{
+  e.preventDefault();
+  filesToUpload = e.dataTransfer.files;
+  dropArea.innerHTML = filesToUpload.length + " photo(s) selected";
+});
+
+function startUpload(){
+  if(!filesToUpload.length){
+    alert("Select photos first");
     return;
   }
 
-  document.getElementById("status").innerText="Uploading...";
-
-  const metadata = {
-    name: file.name,
-    parents: [FOLDER_ID]
-  };
-
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], {type: "application/json"}));
-  form.append("file", file);
-
-  fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
-    headers: new Headers({ "Authorization": "Bearer " + accessToken }),
-    body: form
-  })
-  .then(res => res.json())
-  .then(() => {
-    document.getElementById("status").innerText="Upload complete!";
-  })
-  .catch(() => {
-    document.getElementById("status").innerText="Upload failed.";
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (tokenResponse)=>{
+      accessToken = tokenResponse.access_token;
+      uploadAll();
+    },
   });
 
+  tokenClient.requestAccessToken();
+}
+
+async function uploadAll(){
+
+  document.getElementById("status").innerText="Uploading photos...";
+
+  const guestName = document.getElementById("guestName").value || "Guest";
+
+  for(const file of filesToUpload){
+    const compressed = await compressImage(file);
+
+    const metadata = {
+      name: guestName + "_" + file.name,
+      parents: [FOLDER_ID]
+    };
+
+    const form = new FormData();
+    form.append("metadata", new Blob([JSON.stringify(metadata)], {type:"application/json"}));
+    form.append("file", compressed);
+
+    await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
+      method:"POST",
+      headers:new Headers({"Authorization":"Bearer "+accessToken}),
+      body:form
+    });
+  }
+
+  document.getElementById("status").innerText="Upload complete! Thank you!";
+}
+
+/* Image compression for faster uploads */
+function compressImage(file){
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = e=>{
+      const img = new Image();
+      img.src = e.target.result;
+
+      img.onload = ()=>{
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const maxWidth = 1600;
+        const scale = maxWidth / img.width;
+
+        canvas.width = maxWidth;
+        canvas.height = img.height * scale;
+
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+        canvas.toBlob(blob=>{
+          resolve(blob);
+        },"image/jpeg",0.85);
+      };
+    };
+  });
 }
 
 </script>
